@@ -24,14 +24,16 @@ function toast(msg, ms = 2600) { const t = $('toast'); t.textContent = msg; t.cl
 
 /* ================= state ================= */
 const PROFILES = {
-  king: { name: 'King', label: "KING'S", days: DAYS_KING, tagline: 'Strength & size',
-    th: { bg: '#0a0a0a', card: '#141310', card2: '#1c1a15', line: '#2f2a1e', txt: '#f5efe0', mut: '#a39a85', acc: '#d4af37', acc2: '#f0cf6a', onacc: '#17120a', dim: '#5c5544', limb: '#8f866f', navbg: 'rgba(12,11,9,.97)', bannerbg: 'linear-gradient(135deg,#2a2210,#15120b)', bannerline: '#4d3f1c' } },
-  qxeen: { name: 'Qxeen', label: "QXEEN'S", days: DAYS_QXEEN, tagline: 'Glutes, tone & burn',
-    th: { bg: '#120a1c', card: '#1d122c', card2: '#271839', line: '#3a2654', txt: '#f7f0ff', mut: '#ab98c6', acc: '#b45cff', acc2: '#dba8ff', onacc: '#ffffff', dim: '#5e4b7a', limb: '#9b86b8', navbg: 'rgba(20,11,32,.97)', bannerbg: 'linear-gradient(135deg,#3a1d5c,#1f1131)', bannerline: '#5b3488' } }
+  king: { name: 'Dantá',
+    thL: { bg: '#f5f3ef', card: '#ffffff', card2: 'rgba(60,60,67,.06)', line: 'rgba(60,60,67,.14)', txt: '#000000', mut: 'rgba(60,60,67,.64)', acc: '#ff9500', acc2: '#b86200', onacc: '#2a1800', dim: '#cfcac2', limb: '#8e8e93', navbg: 'rgba(255,255,255,.62)', bannerbg: 'linear-gradient(135deg,rgba(255,149,0,.22),rgba(255,149,0,.07))', bannerline: 'rgba(255,149,0,.34)' }, mono: 'Da', label: 'Dantá’s', days: DAYS_KING, tagline: 'Strength & size',
+    th: { bg: '#000000', card: 'rgba(255,255,255,.07)', card2: 'rgba(255,255,255,.1)', line: 'rgba(255,255,255,.1)', txt: '#ffffff', mut: 'rgba(235,235,245,.62)', acc: '#ff9f0a', acc2: '#ffb84d', onacc: '#1c1100', dim: '#48484a', limb: '#8e8e93', navbg: 'rgba(40,40,44,.55)', bannerbg: 'linear-gradient(135deg,rgba(255,159,10,.24),rgba(255,159,10,.07))', bannerline: 'rgba(255,159,10,.32)' } },
+  qxeen: { name: 'Desrica',
+    thL: { bg: '#f4f1f8', card: '#ffffff', card2: 'rgba(60,60,67,.06)', line: 'rgba(60,60,67,.14)', txt: '#000000', mut: 'rgba(60,60,67,.64)', acc: '#af52de', acc2: '#8a36bd', onacc: '#ffffff', dim: '#c9c4d4', limb: '#8e8e93', navbg: 'rgba(255,255,255,.62)', bannerbg: 'linear-gradient(135deg,rgba(175,82,222,.2),rgba(175,82,222,.06))', bannerline: 'rgba(175,82,222,.3)' }, mono: 'De', label: 'Desrica’s', days: DAYS_QXEEN, tagline: 'Glutes, tone & burn',
+    th: { bg: '#05030a', card: 'rgba(255,255,255,.07)', card2: 'rgba(255,255,255,.1)', line: 'rgba(255,255,255,.1)', txt: '#ffffff', mut: 'rgba(235,235,245,.62)', acc: '#bf5af2', acc2: '#dc9bff', onacc: '#ffffff', dim: '#4a4458', limb: '#9a8fae', navbg: 'rgba(44,38,54,.55)', bannerbg: 'linear-gradient(135deg,rgba(191,90,242,.26),rgba(191,90,242,.07))', bannerline: 'rgba(191,90,242,.34)' } }
 };
 let PROF = 'king', DAYS = DAYS_KING, TH = PROFILES.king.th, KEY = 'gym.v2.king';
 const LWS = () => 'gym.lastWeekSeen.' + PROF;
-const blank = () => ({ v: 2, settings: { unit: 'lb', swaps: {}, targets: {}, tempoScale: 1, wake: true, u: 0 }, logs: {}, body: {}, photos: {}, updated: 0 });
+const blank = () => ({ v: 2, settings: { unit: 'lb', swaps: {}, targets: {}, tempoScale: 1, wake: true, u: 0 }, logs: {}, body: {}, photos: {}, fuel: {}, routine: null, routineU: 0, updated: 0 });
 let S = blank();
 function loadState() {
   S = blank();
@@ -55,7 +57,11 @@ function touchSettings() { S.settings.u = Date.now(); save(); }
 
 /* routine access */
 const slotKey = (di, si) => di + '-' + si;
-const exOf = (di, si) => { const sl = DAYS[di].slots[si]; const i = S.settings.swaps[slotKey(di, si)] || 0; return sl.opts[Math.min(i, sl.opts.length - 1)]; };
+const exOf = (di, si) => {
+  const sl = DAYS[di].slots[si], v = S.settings.swaps[slotKey(di, si)] || 0;
+  if (typeof v === 'string' && v.startsWith('n:')) { const n = v.slice(2); return sl.opts.find(o => o.n === n) || (typeof libFind === 'function' && libFind(n)) || sl.opts[0]; }
+  return sl.opts[Math.min(+v || 0, sl.opts.length - 1)];
+};
 const entry = (wk, di, id) => (((S.logs[wk] || {})[di] || {})[id]) || null;
 const setsOf = (wk, di, id) => (entry(wk, di, id) || {}).sets || [];
 function ensureEntry(wk, di, ex) {
@@ -70,7 +76,7 @@ function sessions(id) {
     const e = S.logs[wk][di][id]; if (!e) continue;
     const sets = (e.sets || []).filter(Boolean); if (!sets.length) continue;
     const t = Math.min(...sets.map(s => s.t || parseDk(wk).getTime()));
-    out.push({ wk, di: +di, t, date: dk(new Date(t)), sets, timed: !!e.timed });
+    out.push({ wk, di: +di, t, date: dk(new Date(t)), sets, timed: !!e.timed, note: e.note || '' });
   }
   return out.sort((a, b) => a.t - b.t);
 }
@@ -89,6 +95,14 @@ function figure(pat, t) {
     const a = pr.split(':'); switch (a[0]) {
       case 'floor': g += ln([2, 112], [118, 112], 2, D); break;
       case 'incline': g += ln([2, 114], [118, 104], 3, D); break;
+      case 'ibench': g += ln([14, 52], [48, 94], 5, D) + ln([48, 94], [66, 94], 5, D) + ln([26, 68], [26, 112], 3, D) + ln([60, 94], [60, 112], 3, D); break;
+      case 'chair': g += ln([42, 38], [42, 88], 4, D) + ln([42, 88], [70, 88], 4, D) + ln([46, 88], [46, 112], 3, D) + ln([66, 88], [66, 112], 3, D); break;
+      case 'stool': g += ln([40, 89], [68, 89], 4, D) + ln([54, 89], [54, 112], 3, D); break;
+      case 'pad45': g += ln([58, 80], [72, 95], 6, D) + ln([66, 90], [66, 112], 3, D) + ln([86, 108], [98, 100], 4, D); break;
+      case 'bike': g += `<circle cx="28" cy="100" r="11" fill="none" stroke="${D}" stroke-width="2.5"/><circle cx="94" cy="100" r="11" fill="none" stroke="${D}" stroke-width="2.5"/>` + ln([28, 100], [44, 78], 3, D) + ln([44, 78], [66, 98], 3, D) + ln([66, 98], [94, 100], 3, D) + ln([86, 62], [94, 100], 3, D); break;
+      case 'sled': g += ln([94, 56], [96, 104], 3, D) + `<rect x="90" y="100" width="26" height="10" rx="2" fill="${D}"/>`; break;
+      case 'box': g += `<rect x="66" y="97" width="28" height="15" rx="2" fill="${D}"/>`; break;
+      case 'rope': { const f = p[a[1]]; g += ln(f, [116, 110], 2, A); break; }
       case 'bench': g += `<rect x="${a[1]}" y="${a[3]}" width="${a[2] - a[1]}" height="6" rx="2" fill="${D}"/>` + ln([+a[1] + 6, +a[3] + 6], [+a[1] + 6, 112], 3, D) + ln([a[2] - 6, +a[3] + 6], [a[2] - 6, 112], 3, D); break;
       case 'step': g += `<rect x="50" y="108" width="26" height="4" fill="${D}"/>`; break;
       case 'seat': g += `<rect x="30" y="92" width="34" height="5" rx="2" fill="${D}"/>` + ln([47, 97], [47, 112], 3, D) + ln([96, 82], [96, 98], 3, D) + ln([2, 112], [118, 112], 2, D); break;
@@ -120,7 +134,7 @@ let lastFrame = 0;
 function anim(ms) {
   if (ms - lastFrame > 40 && !document.hidden) {
     lastFrame = ms;
-    document.querySelectorAll('[data-anim]').forEach(el => { if (el.offsetParent !== null) el.innerHTML = svgWrap(figure(el.dataset.anim, loopT(el.dataset.anim, ms))); });
+    document.querySelectorAll('[data-anim]').forEach(el => { const r = el.getBoundingClientRect(); if (r.width && r.bottom > 0 && r.top < innerHeight) el.innerHTML = svgWrap(figure(el.dataset.anim, loopT(el.dataset.anim, ms))); });
   }
   requestAnimationFrame(anim);
 }
@@ -147,7 +161,7 @@ function renderWorkout() {
     return `<button class="${i === cur ? 'on' : ''} ${i === todayIdx ? 'today' : ''}" data-day="${i}">${dayDone(curWeek, i) ? '<span class="dot"></span>' : ''}${d.d}<small>${date.getDate()} · ${d.title.split(' ')[0]}</small></button>`;
   }).join('');
   const done = DAYS.filter((_, i) => dayDone(curWeek, i)).length;
-  $('weekline').textContent = `This week: ${done} / 5 days complete`;
+  $('weekline').textContent = `This week: ${done} / ${DAYS.length} days complete${isDeload(curWeek) ? ' · 🧘 deload' : ''}`;
 
   // new week banner
   const lastSeen = localStorage.getItem(LWS());
@@ -166,39 +180,37 @@ function renderWorkout() {
     tot += sl.sets; dn += Math.min(done, sl.sets);
     const past = sessions(id).filter(s => !(s.wk === curWeek && s.di === cur)), last = past[past.length - 1];
     const tgt = S.settings.targets[id] ?? '';
-    let sug = '';
-    if (last && !sl.time) {
-      const top = repTop(sl.reps), low = repLow(sl.reps), maxW = Math.max(...last.sets.map(s => +s.w || 0));
-      if (top && last.sets.length >= sl.sets && last.sets.every(s => +s.r >= top)) sug = `<div class="sug up">Hit the top of the range last time<br>→ try ${maxW + inc()} ${unit()}</div>`;
-      else if (low && last.sets.some(s => +s.r < low)) sug = `<div class="sug">Missed reps last time<br>→ stay at ${maxW} ${unit()}</div>`;
-      else sug = `<div class="sug">Last top set<br>${maxW} ${unit()}</div>`;
-    }
+    const AS = autoSuggest(sl, last, id), sug = AS.html;
     const ph = sl.time ? 'sec' : (repTop(sl.reps) || 'max');
     const rows = Array.from({ length: sl.sets }, (_, i) => {
       const s = tl[i]; const lw = last && last.sets[i] ? last.sets[i].w : '';
       return `<div class="set ${s ? 'ok' : ''}"><div class="n">${i + 1}</div>
-      <input inputmode="decimal" data-w="${si}:${i}" value="${esc(s ? s.w : (tgt !== '' ? tgt : lw))}" placeholder="${unit()}">
+      <input inputmode="decimal" data-w="${si}:${i}" value="${esc(s ? s.w : (AS.deload ? AS.w : (tgt !== '' ? tgt : (AS.w !== '' ? AS.w : lw))))}" placeholder="${unit()}">
       <input inputmode="numeric" data-r="${si}:${i}" value="${esc(s ? s.r : '')}" placeholder="${ph}">
       <button class="chk" data-chk="${si}:${i}" aria-label="Log set">✓</button></div>`;
     }).join('');
     return `<div class="card ${done >= sl.sets ? 'done' : ''}">
       <div class="top"><div class="info"><div class="num">EXERCISE ${si + 1}${S.settings.swaps[slotKey(cur, si)] ? ' · SWAPPED' : ''}</div>
        <div class="name">${esc(ex.n)}</div>
-       <div class="meta"><span><b>${sl.sets} × ${sl.reps}</b></span><span>Rest ${fmtT(sl.rest)}</span><span>Tempo ${P[ex.pat].tempo.join('-')}</span></div></div>
+       <div class="meta"><span><b>${sl.sets} × ${sl.reps}</b></span><span>Rest ${fmtT(prefOf(id).rest || sl.rest)}${prefOf(id).rest ? ' ★' : ''}</span><span>Tempo ${P[ex.pat].tempo.join('-')}</span></div></div>
        <button class="thumb" data-form="${si}"><div data-anim="${ex.pat}"></div><div class="lbl">FORM</div></button></div>
-      <div class="chips"><button class="chip acc" data-pace="${si}">▶ ${sl.time ? 'Start timer' : 'Pace set'}</button><button class="chip" data-swap="${si}">↻ Swap</button><button class="chip" data-exhist="${si}">📈 Progress</button></div>
+      <div class="chips"><button class="chip acc" data-pace="${si}">▶ ${sl.time ? 'Start timer' : 'Pace set'}</button><button class="chip" data-swap="${si}">↻ Swap</button><button class="chip" data-exhist="${si}">📈 Progress</button>${extraChips(sl, ex, si)}</div>
       <div class="target">🎯 Target <input inputmode="decimal" data-tgt="${si}" value="${esc(tgt)}" placeholder="—"> ${unit()}${sug}</div>
       <div class="sets"><div class="sethdr"><span>Set</span><span>Weight</span><span>${sl.time ? 'Secs' : 'Reps'}</span><span></span></div>${rows}</div>
       ${last ? `<div class="last">Last time (${fmtD(new Date(last.t), { weekday: 'short', month: 'short', day: 'numeric' })}): ${last.sets.map(s => fmtSet(last.timed, s)).join(', ')}</div>` : ''}
+      ${noteHtml(si, id, last)}
     </div>`;
   }).join('');
   $('dprog').textContent = `${dn} / ${tot} sets`;
   $('dbar').style.width = (tot ? dn / tot * 100 : 0) + '%';
+  renderNudges(); renderPBar();
+  document.querySelectorAll('textarea.note').forEach(t => { if (t.value) { t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; } });
 }
 
 function logSet(si, i, w, r) {
-  const ex = exOf(cur, si), e = ensureEntry(curWeek, cur, ex);
-  e.n = ex.n; if (DAYS[cur].slots[si].time) e.timed = true; e.sets[i] = { w: w === '' ? '' : +w, r: +r, t: (e.sets[i] && e.sets[i].t) || Date.now() }; e.u = Date.now(); save();
+  const ex = exOf(cur, si), timed = !!DAYS[cur].slots[si].time, before = bestOf(exId(ex)), e = ensureEntry(curWeek, cur, ex), fresh = !e.sets[i];
+  e.n = ex.n; if (timed) e.timed = true; e.sets[i] = { w: w === '' ? '' : +w, r: +r, t: (e.sets[i] && e.sets[i].t) || Date.now() }; e.u = Date.now(); save();
+  if (fresh) checkPR(ex.n, before, e.sets[i], timed);
 }
 function unlogSet(si, i) { const e = entry(curWeek, cur, exId(exOf(cur, si))); if (e) { e.sets[i] = null; e.u = Date.now(); save(); } }
 function readRow(si, i) {
@@ -211,40 +223,60 @@ function afterLog(si) {
   const sl = DAYS[cur].slots[si], ex = exOf(cur, si), more = nextSetIdx(si);
   const nxt = DAYS[cur].slots[si + 1] ? exOf(cur, si + 1).n : null;
   if (more < 0 && !nxt && dayDone(curWeek, cur)) { toast(`🔥 ${DAYS[cur].title} done! Logged for ${fmtD(new Date(), { weekday: 'short', month: 'short', day: 'numeric' })}.`, 3500); }
-  startRest(sl.rest, more < 0 ? 'Exercise done · rest' : 'Rest', more < 0 ? (nxt ? 'Next: ' + nxt : 'Last exercise, you\'re finished today 🔥') : `${ex.n} · set ${more + 1} next`);
+  startRest(prefOf(exId(ex)).rest || sl.rest, more < 0 ? 'Exercise done · rest' : 'Rest', more < 0 ? (nxt ? 'Next: ' + nxt : 'Last exercise, you\'re finished today 🔥') : `${ex.n} · set ${more + 1} next`);
+  if (RT[PROF]) { RT[PROF].exid = exId(ex); RT[PROF].exn = ex.n; }
 }
 
 /* ================= rest timer ================= */
-let rEnd = 0, rDur = 0, rInt = null, rGoT = null, rLastBeep = null;
+const RT = {}; // rest timer per profile, so partner mode can run two at once
+let rInt = null, rGoT = null;
 function startRest(sec, label, sub) {
-  rDur = sec; rEnd = Date.now() + sec * 1000; const el = $('rest'); el.classList.add('show'); el.classList.remove('go');
-  $('rlab').textContent = label || 'Rest'; $('rsub').textContent = sub || ''; clearInterval(rInt); clearTimeout(rGoT); rInt = setInterval(tickRest, 200); tickRest(); keepAwake();
+  RT[PROF] = { end: Date.now() + sec * 1000, dur: sec, label: label || 'Rest', sub: sub || '', done: false, lastBeep: null };
+  clearTimeout(rGoT); ensureRestLoop(); tickRest(); keepAwake();
 }
+function ensureRestLoop() { if (!rInt) rInt = setInterval(tickRest, 200); }
 function tickRest() {
-  const left = (rEnd - Date.now()) / 1000;
-  $('rt').textContent = fmtT(Math.ceil(Math.max(0, left)));
-  $('rpb').style.width = Math.max(0, Math.min(100, (1 - left / rDur) * 100)) + '%';
-  if (left <= 3.05 && left > 0 && Math.ceil(left) !== rLastBeep) { rLastBeep = Math.ceil(left); beep(660, .08, .2); }
-  if (left <= 0) {
-    clearInterval(rInt); rLastBeep = null; beep(990, .35, .35); buzz([200, 100, 200]);
-    const el = $('rest'); el.classList.add('go'); $('rt').textContent = 'GO'; $('rlab').textContent = 'Next set!';
-    rGoT = setTimeout(() => el.classList.remove('show'), 5000);
+  let any = false;
+  for (const p in RT) {
+    const r = RT[p]; if (r.done) continue; any = true;
+    const left = (r.end - Date.now()) / 1000;
+    if (left <= 3.05 && left > 0 && Math.ceil(left) !== r.lastBeep) { r.lastBeep = Math.ceil(left); beep(p === PROF ? 660 : 520, .08, .2); }
+    if (left <= 0) {
+      r.done = true; beep(990, .35, .35); buzz([200, 100, 200]);
+      if (p === PROF) { const el = $('rest'); el.classList.add('go'); $('rt').textContent = 'GO'; $('rlab').textContent = 'Next set!'; clearTimeout(rGoT); rGoT = setTimeout(() => { if (!RT[PROF] || RT[PROF].done) el.classList.remove('show'); restChip(); }, 5000); }
+      else toast(`${PROFILES[p].name}: rest is up, GO! 💪`, 3000);
+    }
   }
+  const r = RT[PROF], el = $('rest');
+  if (r && !r.done) {
+    const left = (r.end - Date.now()) / 1000;
+    el.classList.add('show'); el.classList.remove('go');
+    $('rt').textContent = fmtT(Math.ceil(Math.max(0, left)));
+    $('rpb').style.width = Math.max(0, Math.min(100, (1 - left / r.dur) * 100)) + '%';
+    $('rlab').textContent = r.label; $('rsub').textContent = r.sub;
+  }
+  restChip();
+  if (!any) { clearInterval(rInt); rInt = null; }
 }
-$('rminus').onclick = () => { rEnd -= 15000; rDur = Math.max(1, rDur - 15); tickRest(); };
-$('rplus').onclick = () => { rEnd += 15000; rDur += 15; tickRest(); };
-$('rskip').onclick = () => { clearInterval(rInt); $('rest').classList.remove('show'); };
+function restChip() {
+  const chip = $('rother'); if (!chip) return;
+  const op = Object.keys(RT).find(p => p !== PROF && !RT[p].done);
+  if (!op) { chip.classList.add('hide'); return; }
+  chip.classList.remove('hide'); chip.dataset.prof = op;
+  chip.classList.toggle('up', $('rest').classList.contains('show'));
+  chip.style.setProperty('--c', PROFILES[op].th.acc);
+  chip.textContent = `${PROFILES[op].name} · rest ${fmtT(Math.ceil(Math.max(0, (RT[op].end - Date.now()) / 1000)))}`;
+}
+function showRestFor() { const r = RT[PROF], el = $('rest'); el.classList.remove('go'); if (r && !r.done) { ensureRestLoop(); tickRest(); } else el.classList.remove('show'); restChip(); }
+$('rminus').onclick = () => { const r = RT[PROF]; if (!r) return; r.end -= 15000; r.dur = Math.max(1, r.dur - 15); tickRest(); };
+$('rplus').onclick = () => { const r = RT[PROF]; if (!r) return; r.end += 15000; r.dur += 15; tickRest(); };
+$('rskip').onclick = () => { if (RT[PROF]) RT[PROF].done = true; $('rest').classList.remove('show'); restChip(); };
 
 /* ================= sheets ================= */
 function openSheet(html) { $('sheetin').innerHTML = html; $('ov').classList.add('show'); $('sheet').classList.add('show'); $('sheet').scrollTop = 0; }
 function closeSheet() { $('ov').classList.remove('show'); $('sheet').classList.remove('show'); setTimeout(() => { if (!$('sheet').classList.contains('show')) $('sheetin').innerHTML = ''; }, 300); }
 $('ov').onclick = closeSheet; $('sx').onclick = closeSheet;
 
-function swapSheet(si) {
-  const sl = DAYS[cur].slots[si], sel = S.settings.swaps[slotKey(cur, si)] || 0;
-  openSheet(`<h3>Swap exercise</h3><div class="sub">Same muscles, different movement. Each one keeps its own weight log.</div>` +
-    sl.opts.map((o, i) => `<button class="opt ${i === sel ? 'on' : ''}" data-pick="${si}:${i}"><div class="thumb"><div data-anim="${o.pat}"></div></div><div>${i === 0 ? '<div class="cur">YOUR ORIGINAL</div>' : ''}<b>${esc(o.n)}</b><span>${esc(o.cues[0])}</span></div></button>`).join(''));
-}
 function formSheet(si) {
   const ex = exOf(cur, si), pt = P[ex.pat];
   openSheet(`<h3>${esc(ex.n)}</h3><div class="sub">Form guide · the figure moves at the rep tempo</div><div class="bigfig" data-anim="${ex.pat}"></div><ul class="cues">${ex.cues.map(c => `<li>${esc(c)}</li>`).join('')}</ul><div class="tempo">Tempo ${pt.tempo.join('-')}: ${pt.ph[0]} ${pt.tempo[0]}s${pt.tempo[1] ? ` · ${pt.ph[1]} ${pt.tempo[1]}s` : ''} · ${pt.ph[2]} ${pt.tempo[2]}s</div>`);
@@ -285,6 +317,7 @@ function openPacer(si) {
   const i = nextSetIdx(si), sl = DAYS[cur].slots[si], ex = exOf(cur, si);
   if (i < 0) { openSheet(`<h3>All sets done 💪</h3><div class="sub">Untick a set if you want to redo it.</div>`); return; }
   beep(1, .01, .001); keepAwake();
+  S.settings.tempoScale = prefOf(exId(ex)).tempo || 1;
   PC = { si, i, sl, ex, pat: ex.pat, target: sl.time ? 0 : repTop(sl.reps), time: sl.time || 0, reps: 0, start: performance.now() + 3000, paused: false, pauseAt: 0, last: '', done: false };
   const w = document.querySelector(`[data-w="${si}:${i}"]`).value.trim();
   $('pn').textContent = `Set ${i + 1} of ${sl.sets} · ${w ? w + ' ' + unit() : 'Bodyweight'}`;
@@ -333,7 +366,7 @@ function finishPace() {
 $('pdone').onclick = finishPace;
 $('pcancel').onclick = () => { if (PC) { PC.done = true; PC = null; } $('pacer').classList.remove('show'); };
 $('ppause').onclick = e => { if (!PC) return; if (!PC.paused) { PC.paused = true; PC.pauseAt = performance.now(); e.target.textContent = 'Resume'; } else { PC.start += performance.now() - PC.pauseAt; PC.paused = false; e.target.textContent = 'Pause'; } };
-function scaleTempo(f) { if (!PC) return; const n = performance.now(), el = n - PC.start, ns = Math.max(.5, Math.min(2, S.settings.tempoScale * f)); if (el > 0) PC.start = n - el * (ns / S.settings.tempoScale); S.settings.tempoScale = ns; touchSettings(); updTempo(); }
+function scaleTempo(f) { if (!PC) return; const n = performance.now(), el = n - PC.start, ns = Math.max(.5, Math.min(2, S.settings.tempoScale * f)); if (el > 0) PC.start = n - el * (ns / S.settings.tempoScale); S.settings.tempoScale = ns; setPref(exId(PC.ex), PC.ex.n, 'tempo', ns); touchSettings(); updTempo(); }
 $('tslow').onclick = () => scaleTempo(1.25);
 $('tfast').onclick = () => scaleTempo(.8);
 
@@ -343,7 +376,7 @@ function weekStats(wk) {
   for (const di in W) { let any = false; for (const id in W[di]) for (const s of (W[di][id].sets || [])) if (s) { sets++; vol += (+s.w || 0) * (+s.r || 0); any = true; } if (any) days++; }
   return { sets, vol: Math.round(vol), days };
 }
-function renderHistory() {
+function renderWeeks() {
   const weeks = Object.keys(S.logs).filter(wk => weekStats(wk).sets > 0).sort().reverse();
   const totalSets = weeks.reduce((a, w) => a + weekStats(w).sets, 0);
   let h = `<div class="dayhead"><div><h2>History</h2><div class="sub">${weeks.length} week${weeks.length === 1 ? '' : 's'} logged · ${totalSets} sets total</div></div></div>`;
@@ -363,7 +396,7 @@ function renderHistory() {
       <div class="dots">${DAYS.map((_, i) => `<i class="${dayAny(wk, i) ? 'on' : ''}"></i>`).join('')}</div></button>
       <div class="body">${days}</div></div>`;
   }).join('');
-  $('hist').innerHTML = h;
+  $('histBody').innerHTML = h;
 }
 
 /* ================= BODY ================= */
@@ -385,14 +418,19 @@ async function renderBody() {
     <div class="grid2"><label class="fld">Date<input type="date" id="bDate" value="${today}" max="${today}"></label>
     <label class="fld">Weight (${unit()})<input id="bW" inputmode="decimal" value="${esc(te.w ?? '')}" placeholder="e.g. 175"></label>
     <label class="fld">Waist (in)<input id="bWaist" inputmode="decimal" value="${esc(te.waist ?? '')}" placeholder="optional"></label>
-    <label class="fld">Body fat %<input id="bBf" inputmode="decimal" value="${esc(te.bf ?? '')}" placeholder="optional"></label></div>
+    <label class="fld">Body fat %<input id="bBf" inputmode="decimal" value="${esc(te.bf ?? '')}" placeholder="optional"></label>
+    <label class="fld">Chest (in)<input id="bChest" inputmode="decimal" value="${esc(te.chest ?? '')}" placeholder="optional"></label>
+    <label class="fld">Arms (in)<input id="bArms" inputmode="decimal" value="${esc(te.arms ?? '')}" placeholder="optional"></label>
+    <label class="fld">Thighs (in)<input id="bThighs" inputmode="decimal" value="${esc(te.thighs ?? '')}" placeholder="optional"></label>
+    <label class="fld">Hips / glutes (in)<input id="bHips" inputmode="decimal" value="${esc(te.hips ?? '')}" placeholder="optional"></label></div>
     <label class="fld" style="margin-top:10px">Note<input id="bNote" value="${esc(te.note ?? '')}" placeholder="optional, e.g. felt strong, slept bad"></label>
     <button class="btn acc" id="bSave">Save</button></div>`;
   h += `<div class="card"><h3>Weight trend</h3>
     <div class="stats"><div class="stat"><b>${last ? last.y : '—'}</b><span>Current ${unit()}</span></div><div class="stat"><b>${sg(dlt(last, ago30))}</b><span>30 days</span></div><div class="stat"><b>${sg(dlt(last, first))}</b><span>Since start</span></div></div>
     ${pts.length ? lineChart(pts, { title: `Bodyweight (${unit()})` }) : '<div class="muted">Log your weight a few times a week (same time, ideally in the morning) to see a trend.</div>'}
-    ${list.length ? `<div style="margin-top:8px">${list.slice().reverse().slice(0, 12).map(d => { const b = S.body[d]; return `<div class="hrow"><span>${fmtD(parseDk(d), { weekday: 'short', month: 'short', day: 'numeric', year: '2-digit' })}</span><b>${b.w} ${unit()}${b.waist ? ` · ${b.waist}"` : ''}${b.bf ? ` · ${b.bf}%` : ''}</b><button class="x" data-bdel="${d}">✕</button></div>${b.note ? `<div class="muted" style="font-size:12px;margin:-4px 0 6px 2px">${esc(b.note)}</div>` : ''}`; }).join('')}${list.length > 12 ? `<div class="muted" style="font-size:12px;padding-top:6px">+ ${list.length - 12} older entries (all included in export)</div>` : ''}</div>` : ''}
+    ${list.length ? `<div style="margin-top:8px">${list.slice().reverse().slice(0, 12).map(d => { const b = S.body[d]; return `<div class="hrow"><span>${fmtD(parseDk(d), { weekday: 'short', month: 'short', day: 'numeric', year: '2-digit' })}</span><b>${b.w} ${unit()}${b.waist ? ` · W ${b.waist}"` : ''}${b.hips ? ` · H ${b.hips}"` : ''}${b.bf ? ` · ${b.bf}%` : ''}</b><button class="x" data-bdel="${d}">✕</button></div>${b.note ? `<div class="muted" style="font-size:12px;margin:-4px 0 6px 2px">${esc(b.note)}</div>` : ''}`; }).join('')}${list.length > 12 ? `<div class="muted" style="font-size:12px;padding-top:6px">+ ${list.length - 12} older entries (all included in export)</div>` : ''}</div>` : ''}
   </div>`;
+  h += measureCard();
   // photos
   const months = Object.keys(S.photos).filter(m => POSES.some(p => photoMeta(m, p))).sort().reverse();
   const avgW = m => { const ws = list.filter(d => d.startsWith(m)).map(d => +S.body[d].w); return ws.length ? (ws.reduce((a, b) => a + b, 0) / ws.length).toFixed(1) + ' ' + unit() : ''; };
@@ -401,7 +439,7 @@ async function renderBody() {
   if (months.length > 1) {
     const a = months[months.length - 1], b = months[0];
     h += `<h3 style="margin-top:16px">Compare</h3><div class="grid2"><label class="fld">From<select id="cA">${months.map(m => `<option value="${m}" ${m === a ? 'selected' : ''}>${fmtMonth(m)}</option>`).join('')}</select></label><label class="fld">To<select id="cB">${months.map(m => `<option value="${m}" ${m === b ? 'selected' : ''}>${fmtMonth(m)}</option>`).join('')}</select></label></div>
-      <div class="chips" id="cPose">${POSES.map((p, i) => `<button class="chip ${i === 0 ? 'on' : ''}" data-cpose="${p}">${p[0].toUpperCase() + p.slice(1)}</button>`).join('')}</div><div class="cmp" id="cmp"></div>`;
+      <div class="chips"><button class="chip ${cmpMode === 'side' ? 'on' : ''}" data-cmpmode="side">Side by side</button><button class="chip ${cmpMode === 'slider' ? 'on' : ''}" data-cmpmode="slider">⟷ Slider</button></div><div class="chips" id="cPose">${POSES.map((p, i) => `<button class="chip ${i === 0 ? 'on' : ''}" data-cpose="${p}">${p[0].toUpperCase() + p.slice(1)}</button>`).join('')}</div><div class="cmp" id="cmp"></div>`;
   }
   h += months.filter(m => m !== mk).map(m => `<div class="month"><div class="mh">${fmtMonth(m)}<span>${avgW(m)}</span></div><div class="poses">${POSES.map(p => slotHtml(m, p, false)).join('')}</div></div>`).join('');
   h += `</div>`;
@@ -417,11 +455,6 @@ function slotHtml(m, p, editable) {
   return `<button class="pslot" data-addphoto="${m}|${p}"><span class="plus">＋</span><span>${lbl}</span></button>`;
 }
 let cmpPose = 'front';
-async function renderCompare() {
-  const A = $('cA'), B = $('cB'); if (!A) return;
-  const one = async m => { const meta = photoMeta(m, cmpPose); const url = meta ? await photoURL(m, cmpPose) : null; return `<figure>${url ? `<img src="${url}">` : '<div class="empty">No ' + cmpPose + ' photo</div>'}<figcaption>${fmtMonth(m)}</figcaption></figure>`; };
-  $('cmp').innerHTML = (await one(A.value)) + (await one(B.value));
-}
 async function hydratePhotos() {
   for (const img of document.querySelectorAll('img[data-img]')) {
     const [m, p] = img.dataset.img.split('|'); const url = await photoURL(m, p); if (url) img.src = url;
@@ -440,7 +473,8 @@ function photoSheet(m, p) {
 let idbP = null;
 function idb() { return idbP = idbP || new Promise((res, rej) => { const r = indexedDB.open('gym-photos', 1); r.onupgradeneeded = () => r.result.createObjectStore('photos'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
 async function idbRaw(k) { const db = await idb(); return new Promise(r => { const q = db.transaction('photos').objectStore('photos').get(k); q.onsuccess = () => r(q.result || null); q.onerror = () => r(null); }); }
-async function idbGet(k) { return (await idbRaw(PROF + ':' + k)) || (PROF === 'king' ? await idbRaw(k) : null); }
+async function idbGetP(prof, k) { return (await idbRaw(prof + ':' + k)) || (prof === 'king' ? await idbRaw(k) : null); }
+async function idbGet(k) { return idbGetP(PROF, k); }
 async function idbClearProfile() { const db = await idb(); return new Promise(r => { const t = db.transaction('photos', 'readwrite'), st = t.objectStore('photos'); const q = st.openCursor(); q.onsuccess = () => { const c = q.result; if (c) { if (String(c.key).startsWith(PROF + ':') || (PROF === 'king' && !String(c.key).includes(':'))) c.delete(); c.continue(); } }; t.oncomplete = () => r(); t.onerror = () => r(); }); }
 async function idbPut(k, v) { const db = await idb(); return new Promise((r, j) => { const t = db.transaction('photos', 'readwrite'); t.objectStore('photos').put(v, PROF + ':' + k); t.oncomplete = () => r(); t.onerror = () => j(t.error); }); }
 async function idbDel(k) { const db = await idb(); return new Promise(r => { const t = db.transaction('photos', 'readwrite'); t.objectStore('photos').delete(PROF + ':' + k); t.objectStore('photos').delete(k); t.oncomplete = () => r(); t.onerror = () => r(); }); }
@@ -494,7 +528,7 @@ function renderMore() {
   const cfg = getCfg(), standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone;
   const auto = localStorage.getItem('gym.autoProfile') === PROF;
   let h = `<div class="dayhead"><div><h2>More</h2><div class="sub">Account, backups and settings</div></div></div>`;
-  h += `<div class="card"><h3>👑 ${PROFILES[PROF].name}</h3><div class="muted">You're on ${PROFILES[PROF].name}'s profile: ${PROFILES[PROF].tagline}. Each profile has its own routine, history, photos and login.</div>
+  h += `<div class="card"><h3>${PROFILES[PROF].name}</h3><div class="muted">You're on ${PROFILES[PROF].name}'s profile: ${PROFILES[PROF].tagline}. Each profile has its own routine, history, photos and login.</div>
     <button class="btn acc" id="switchBtn2">Switch profile</button>
     <div class="hrow" style="margin-top:6px"><span>Skip the picker and always open as ${PROFILES[PROF].name} on this phone</span><button class="chip ${auto ? 'on' : ''}" id="autoT">${auto ? 'On' : 'Off'}</button></div></div>`;
   // account
@@ -519,14 +553,17 @@ function renderMore() {
   h += `<div class="card"><h3>Export &amp; backup</h3><div class="muted">Download everything you've ever logged. The full backup can be imported back in on any phone.</div>
     <button class="btn acc" data-exp="json">⬇ Full backup (.json)</button>
     <div class="grid2"><button class="btn" data-exp="sets">Workouts (.csv)</button><button class="btn" data-exp="body">Body log (.csv)</button></div>
+    <button class="btn" data-exp="fuel">Fuel log (.csv)</button>
     <button class="btn" data-exp="photos">Progress photos (.zip)</button>
     <button class="btn ghost" id="impBtn">⬆ Import a backup</button></div>`;
   // settings
   h += `<div class="card"><h3>Settings</h3>
+    <div class="hrow"><span>Appearance</span><div class="row">${[['light', 'Light'], ['dark', 'Dark'], ['auto', 'Auto']].map(([k, l]) => `<button class="chip ${(S.settings.appearance || 'dark') === k ? 'on' : ''}" data-appear="${k}">${l}</button>`).join('')}</div></div>
     <div class="hrow"><span>Weight unit</span><div class="row"><button class="chip ${unit() === 'lb' ? 'on' : ''}" data-unit="lb">LB</button><button class="chip ${unit() === 'kg' ? 'on' : ''}" data-unit="kg">KG</button></div></div>
-    <div class="hrow"><span>Keep screen awake while training</span><button class="chip ${S.settings.wake ? 'on' : ''}" id="wakeT">${S.settings.wake ? 'On' : 'Off'}</button></div>
+    <div class="hrow"><span>☕ Caffeine: keep the screen awake while the app is open${cafState === 'video' ? ' <small class="muted">(backup mode)</small>' : cafState === 'failed' ? ' <small class="muted">(not supported here)</small>' : ''}</span><button class="chip ${cafOn() ? 'on' : ''}" id="wakeT">${cafOn() ? 'On' : 'Off'}</button></div>
     <div class="hrow"><span>Rep pacer speed</span><div class="row"><b>${Math.round(100 / S.settings.tempoScale)}%</b><button class="chip" id="tReset">Reset</button></div></div>
     <div class="hrow"><span>Reset all swaps to your originals</span><button class="chip" id="swReset">Reset</button></div></div>`;
+  h += moreExtras();
   if (!standalone) h += `<div class="card"><h3>Install on your phone</h3>${deferredInstall ? `<button class="btn acc" id="instBtn">Add to Home Screen</button>` : `<div class="muted"><b>iPhone:</b> Safari → Share button → <i>Add to Home Screen</i>.<br><b>Android:</b> Chrome → ⋮ menu → <i>Install app</i>.<br>It then opens full screen like a normal app and works offline at the gym.</div>`}</div>`;
   h += `<div class="foot">Gym Routine · data stays yours. Local data: ${(JSON.stringify(S).length / 1024).toFixed(0)} KB<br><button class="chip" id="wipe" style="margin-top:10px;color:var(--acc2)">Clear data on this phone</button></div>`;
   $('more').innerHTML = h;
@@ -551,9 +588,14 @@ async function doExport(kind) {
     download(`gym-${PROF}-workouts-${stamp()}.csv`, new Blob([csv(rows)], { type: 'text/csv' }));
   }
   if (kind === 'body') {
-    const rows = [['date', 'weight', 'unit', 'waist_in', 'body_fat_pct', 'note']];
-    for (const d of Object.keys(S.body).sort()) { const b = S.body[d]; if (b.del) continue; rows.push([d, b.w, unit(), b.waist, b.bf, b.note]); }
+    const rows = [['date', 'weight', 'unit', 'waist_in', 'chest_in', 'arms_in', 'thighs_in', 'hips_in', 'body_fat_pct', 'note']];
+    for (const d of Object.keys(S.body).sort()) { const b = S.body[d]; if (b.del) continue; rows.push([d, b.w, unit(), b.waist, b.chest, b.arms, b.thighs, b.hips, b.bf, b.note]); }
     download(`gym-${PROF}-body-${stamp()}.csv`, new Blob([csv(rows)], { type: 'text/csv' }));
+  }
+  if (kind === 'fuel') {
+    const rows = [['date', 'calories', 'protein_g', 'water_glasses', 'steps', 'extra_cardio_min']];
+    for (const d of Object.keys(S.fuel || {}).sort()) { const f = S.fuel[d]; rows.push([d, f.cal, f.protein, f.water, f.steps, f.cardio]); }
+    download(`gym-${PROF}-fuel-${stamp()}.csv`, new Blob([csv(rows)], { type: 'text/csv' }));
   }
   if (kind === 'photos') {
     const list = []; for (const m in S.photos) for (const p of POSES) if (photoMeta(m, p)) list.push([m, p]);
@@ -576,59 +618,81 @@ $('importInput').addEventListener('change', async e => {
 
 /* ================= cloud sync (Supabase) ================= */
 const BUCKET = 'progress-photos';
-let sb = null, session = null, syncing = false, again = false, syncT = null, lastSync = 0;
-const clients = {};
+let sb = null, session = null, syncT = null, lastSync = 0;
+const clients = {}; // one Supabase client + session per profile, so both can sync on a shared phone
+// Accepts the URL in any form people copy from Supabase (…/rest/v1, …/auth/v1, trailing slash, spaces)
+const cleanUrl = u => String(u || '').trim().replace(/\/+$/, '').replace(/\/(rest|auth|storage|realtime|functions)\/v1.*$/i, '').replace(/\/+$/, '');
 function getCfg() {
   let c = {}; try { c = JSON.parse(localStorage.getItem('gym.cfg') || '{}'); } catch (e) { }
-  const g = window.GYM_CONFIG || {}; return { url: c.url || g.supabaseUrl || '', key: c.key || g.supabaseAnonKey || '' };
+  const g = window.GYM_CONFIG || {}; return { url: cleanUrl(c.url || g.supabaseUrl), key: String(c.key || g.supabaseAnonKey || '').trim() };
 }
 function setSync(state, text) { const el = $('sync'); el.className = 'sync ' + state; el.querySelector('span').textContent = text; }
+function ensureClient(prof) {
+  const c = getCfg(); if (!c.url || !c.key || !window.supabase || !window.supabase.createClient) return null;
+  let x = clients[prof];
+  if (!x || x.url !== c.url || x.key !== c.key) {
+    try {
+      const cl = window.supabase.createClient(c.url, c.key, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'gym-auth-' + prof } });
+      x = clients[prof] = { cl, url: c.url, key: c.key, session: null, syncing: false, again: false, lastSync: 0 };
+      x.ready = cl.auth.getSession().then(({ data }) => (x.session = data.session)).catch(() => null);
+      cl.auth.onAuthStateChange((ev, s2) => { const was = !!x.session; x.session = s2; if (prof === PROF) { session = s2; if (!!s2 !== was) afterAuth(); } });
+    } catch (e) { return null; }
+  }
+  return x;
+}
 function initCloud() {
   sb = null; session = null; lastSync = 0;
   const c = getCfg();
   if (!c.url || !c.key) { setSync('', 'On this device'); return; }
   if (!window.supabase || !window.supabase.createClient) { setSync('err', 'Offline · saved on device'); return; }
-  const prof = PROF;
-  if (!clients[prof] || clients[prof].url !== c.url || clients[prof].key !== c.key) {
-    try {
-      const cl = window.supabase.createClient(c.url, c.key, { auth: { persistSession: true, autoRefreshToken: true, storageKey: 'gym-auth-' + prof } });
-      clients[prof] = { cl, url: c.url, key: c.key };
-      cl.auth.onAuthStateChange((ev, s) => { if (PROF !== prof) return; const was = !!session; session = s; if (!!s !== was) afterAuth(); });
-    } catch (e) { setSync('err', 'Bad Supabase settings'); return; }
-  }
-  sb = clients[prof].cl;
-  sb.auth.getSession().then(({ data }) => { if (PROF !== prof) return; session = data.session; afterAuth(); });
+  const prof = PROF, x = ensureClient(prof);
+  if (!x) { setSync('err', 'Bad Supabase settings'); return; }
+  sb = x.cl; lastSync = x.lastSync || 0;
+  x.ready.then(s2 => { if (PROF !== prof) return; session = s2; afterAuth(); });
 }
 function afterAuth() { if (session) { setSync('busy', 'Syncing…'); sync(); } else setSync('', 'Signed out · on this device'); if (tab === 'more') renderMore(); }
-function scheduleSync() { clearTimeout(syncT); syncT = setTimeout(sync, 1500); }
-async function sync() {
-  if (!sb || !session) return; if (!navigator.onLine) { setSync('err', 'Offline · will sync later'); return; }
-  if (syncing) { again = true; return; } syncing = true; setSync('busy', 'Syncing…');
-  const prof = PROF, client = sb;
-  try {
-    const uid = session.user.id;
-    const { data, error } = await client.from('gym_state').select('data').eq('user_id', uid).maybeSingle();
-    if (error) throw error;
-    if (prof !== PROF) throw 'switched';
-    if (data && data.data) { S = merge(S, data.data); persist(); }
-    await syncPhotos(uid);
-    if (prof !== PROF) throw 'switched';
-    const { error: e2 } = await client.from('gym_state').upsert({ user_id: uid, data: S, updated_at: new Date().toISOString() });
-    if (e2) throw e2;
-    lastSync = Date.now(); setSync('ok', 'Synced'); renderAll(true);
-  } catch (e) { if (e !== 'switched') { console.warn(e); setSync('err', 'Sync failed · saved on device'); } }
-  syncing = false; if (again) { again = false; sync(); }
+function scheduleSync() { clearTimeout(syncT); const p = PROF; syncT = setTimeout(() => sync(p), 1500); if (typeof pulse === 'function') pulse(); }
+function readState(prof) {
+  if (prof === PROF) return S;
+  try { const d = JSON.parse(localStorage.getItem('gym.v2.' + prof) || 'null'); return d ? { ...blank(), ...d, settings: { ...blank().settings, ...(d.settings || {}) } } : blank(); } catch (e) { return blank(); }
 }
-async function syncPhotos(uid) {
-  for (const m in S.photos) for (const p of POSES) {
-    const meta = S.photos[m][p]; if (!meta) continue;
-    if (meta.oldPath) { try { await sb.storage.from(BUCKET).remove([meta.oldPath]); } catch (e) { } delete meta.oldPath; }
+function writeState(prof, st) {
+  if (prof === PROF) { S = st; persist(); return; }
+  st.updated = Date.now(); try { localStorage.setItem('gym.v2.' + prof, JSON.stringify(st)); } catch (e) { }
+}
+const syncAll = () => { for (const p in clients) sync(p); };
+async function sync(prof = PROF) {
+  const x = clients[prof]; if (!x) return; await x.ready; if (!x.session) return;
+  const isCur = () => prof === PROF;
+  if (!navigator.onLine) { if (isCur()) setSync('err', 'Offline · will sync later'); return; }
+  if (x.syncing) { x.again = true; return; } x.syncing = true; if (isCur()) setSync('busy', 'Syncing…');
+  try {
+    const uid = x.session.user.id, cl = x.cl;
+    const { data, error } = await cl.from('gym_state').select('data').eq('user_id', uid).maybeSingle();
+    if (error) throw error;
+    if (data && data.data) writeState(prof, merge(readState(prof), data.data));
+    await syncPhotos(prof, uid, cl);
+    const st = readState(prof);
+    const { error: e2 } = await cl.from('gym_state').upsert({ user_id: uid, data: st, updated_at: new Date().toISOString() });
+    if (e2) throw e2;
+    if (typeof publishSummary === 'function') await publishSummary(prof, uid, cl, st);
+    x.lastSync = Date.now();
+    if (isCur()) { lastSync = x.lastSync; setSync('ok', 'Synced'); if (typeof applyRoutine === 'function') applyRoutine(); if (resolveMode() !== document.documentElement.dataset.mode) applyTheme(); renderAll(true); }
+  } catch (e) { console.warn(e); if (isCur()) setSync('err', 'Sync failed · saved on device'); }
+  x.syncing = false; if (x.again) { x.again = false; sync(prof); }
+}
+async function syncPhotos(prof, uid, cl) {
+  const st = readState(prof); let changed = false;
+  for (const m in st.photos) for (const p of POSES) {
+    const meta = st.photos[m][p]; if (!meta) continue;
+    if (meta.oldPath) { try { await cl.storage.from(BUCKET).remove([meta.oldPath]); } catch (e) { } delete meta.oldPath; changed = true; }
     if (meta.del || meta.up) continue;
-    const blob = await idbGet(`${m}-${p}-${meta.u}`); if (!blob) continue;
+    const blob = await idbGetP(prof, `${m}-${p}-${meta.u}`); if (!blob) continue;
     const path = `${uid}/${m}-${p}-${meta.u}.jpg`;
-    const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: true });
-    if (!error) { meta.path = path; meta.up = true; persist(); }
+    const { error } = await cl.storage.from(BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: true });
+    if (!error) { meta.path = path; meta.up = true; changed = true; }
   }
+  if (changed) writeState(prof, prof === PROF ? S : st);
 }
 /* merge two states: newest wins per exercise-session, per body entry, per photo slot, settings as a block */
 function merge(a, b) {
@@ -639,6 +703,8 @@ function merge(a, b) {
     const y = o.logs[wk][di][id]; if (!y || (x.u || 0) > (y.u || 0)) o.logs[wk][di][id] = x;
   }
   for (const d in b.body || {}) { const x = b.body[d], y = o.body[d]; if (!y || (x.u || 0) > (y.u || 0)) o.body[d] = x; }
+  if ((b.routineU || 0) > (o.routineU || 0)) { o.routine = b.routine; o.routineU = b.routineU; }
+  o.fuel = o.fuel || {}; for (const d in b.fuel || {}) { const x = b.fuel[d], y = o.fuel[d]; if (!y || (x.u || 0) > (y.u || 0)) o.fuel[d] = x; }
   for (const m in b.photos || {}) for (const p in b.photos[m]) {
     o.photos[m] = o.photos[m] || {}; const x = b.photos[m][p], y = o.photos[m][p];
     if (!y || (x.u || 0) > (y.u || 0)) o.photos[m][p] = x;
@@ -652,13 +718,15 @@ function renderAll(quiet) {
   renderHeader();
   if (tab === 'workout') { if (!(quiet && document.activeElement && document.activeElement.matches('input'))) renderWorkout(); }
   if (tab === 'history') renderHistory();
+  if (tab === 'fuel' && !(quiet && document.activeElement && document.activeElement.matches('input'))) renderFuel();
+  renderPBar();
   if (tab === 'body' && !(quiet && document.activeElement && document.activeElement.matches('input,select'))) renderBody();
   if (tab === 'more' && !quiet) renderMore();
 }
 function showTab(t) {
   tab = t; document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
   document.querySelectorAll('.tab').forEach(s => s.classList.toggle('on', s.id === 't-' + t));
-  $('htitle').innerHTML = PROFILES[PROF].label + ' <span>' + { workout: 'SPLIT', history: 'LOG', body: 'BODY', more: 'APP' }[t] + '</span>';
+  $('htitle').innerHTML = PROFILES[PROF].label + ' <span>' + { workout: 'Split', history: 'Log', body: 'Body', fuel: 'Fuel', more: 'App' }[t] + '</span>';
   renderAll(); window.scrollTo(0, 0);
 }
 
@@ -683,11 +751,11 @@ document.addEventListener('click', async e => {
   if (t.id === 'bSave') {
     const date = $('bDate').value || dk(new Date()), w = $('bW').value.trim();
     if (!w) return toast('Enter your weight first');
-    S.body[date] = { w: +w, waist: $('bWaist').value.trim(), bf: $('bBf').value.trim(), note: $('bNote').value.trim(), u: Date.now() };
+    S.body[date] = { w: +w, waist: $('bWaist').value.trim(), bf: $('bBf').value.trim(), chest: $('bChest').value.trim(), arms: $('bArms').value.trim(), thighs: $('bThighs').value.trim(), hips: $('bHips').value.trim(), note: $('bNote').value.trim(), u: Date.now() };
     save(); renderBody(); toast('✅ Saved for ' + fmtD(parseDk(date), { weekday: 'short', month: 'short', day: 'numeric' })); return;
   }
   if (d.bdel) { S.body[d.bdel] = { del: true, u: Date.now() }; save(); renderBody(); return; }
-  if (d.addphoto) { pendingPhoto = d.addphoto.split('|'); $('photoInput').click(); return; }
+  if (d.addphoto) return photoChoice(d.addphoto);
   if (d.photo) { const [m, p] = d.photo.split('|'); return photoSheet(m, p); }
   if (d.pdel) { const [m, p] = d.pdel.split('|'); return deletePhoto(m, p); }
   if (d.cpose) { cmpPose = d.cpose; document.querySelectorAll('[data-cpose]').forEach(b => b.classList.toggle('on', b === t)); renderCompare(); return; }
@@ -696,13 +764,14 @@ document.addEventListener('click', async e => {
   if (d.unit) { S.settings.unit = d.unit; touchSettings(); renderMore(); return; }
   switch (t.id) {
     case 'impBtn': $('importInput').click(); break;
-    case 'wakeT': S.settings.wake = !S.settings.wake; touchSettings(); if (!S.settings.wake && wakeLock) { wakeLock.release(); wakeLock = null; } renderMore(); break;
+    case 'wakeT': setCaffeine(!cafOn()); renderMore(); break;
     case 'tReset': S.settings.tempoScale = 1; touchSettings(); renderMore(); break;
     case 'swReset': S.settings.swaps = {}; touchSettings(); toast('All exercises back to your originals'); break;
     case 'instBtn': if (deferredInstall) { deferredInstall.prompt(); deferredInstall = null; renderMore(); } break;
     case 'cfgSave': {
-      const url = $('cfgUrl').value.trim().replace(/\/+$/, ''), key = $('cfgKey').value.trim();
-      if (!/^https:\/\/.+/.test(url) || key.length < 20) return toast('Check the URL and key');
+      const url = cleanUrl($('cfgUrl').value), key = $('cfgKey').value.trim().replace(/\s+/g, '');
+      if (!/^https:\/\/[a-z0-9-]+\.supabase\.(co|in)$/i.test(url) && !/^https:\/\/.+/.test(url) || key.length < 20) return toast('Check the URL and key');
+      if (/service_role|sb_secret_/.test(key)) return toast('That\'s the secret key. Use the anon / publishable key instead', 5000);
       localStorage.setItem('gym.cfg', JSON.stringify({ url, key })); initCloud(); renderMore(); toast('Connected. Now sign in'); break;
     }
     case 'cfgClear': localStorage.removeItem('gym.cfg'); if (sb) await sb.auth.signOut().catch(() => { }); for (const k in clients) delete clients[k]; sb = null; session = null; setSync('', 'On this device'); renderMore(); break;
@@ -712,7 +781,16 @@ document.addEventListener('click', async e => {
       if (!email || password.length < 6) return toast('Email + password (6+ characters)');
       t.textContent = '…';
       const r = t.id === 'auIn' ? await sb.auth.signInWithPassword({ email, password }) : await sb.auth.signUp({ email, password });
-      if (r.error) { toast(r.error.message, 4500); renderMore(); return; }
+      if (r.error) {
+        const m = r.error.message || '';
+        const msg = /invalid login/i.test(m) ? 'Wrong email or password. No account yet? Tap Create account'
+          : /already registered|already exists/i.test(m) ? 'That email already has an account. Tap Sign in instead'
+          : /not confirmed/i.test(m) ? 'Email not confirmed. Check your inbox, or turn off "Confirm email" in Supabase'
+          : /fetch|network|failed to/i.test(m) ? 'Can\'t reach Supabase. Check the Project URL in More → Change project, and your internet'
+          : /invalid api key|apikey/i.test(m) ? 'The key is wrong. Paste the anon / publishable key again (Change project)'
+          : m;
+        toast(msg, 6000); renderMore(); return;
+      }
       if (t.id === 'auUp' && !r.data.session) { toast('Check your email to confirm, then sign in', 5000); renderMore(); return; }
       toast('✅ Signed in, syncing'); break;
     }
@@ -729,29 +807,34 @@ document.addEventListener('change', e => {
   if (d.tgt !== undefined) { const id = exId(exOf(cur, +d.tgt)); const v = e.target.value.trim(); if (v === '') delete S.settings.targets[id]; else S.settings.targets[id] = +v; touchSettings(); renderWorkout(); return; }
   if (d.w || d.r) { const [si, i] = (d.w || d.r).split(':').map(Number); if (setsOf(curWeek, cur, exId(exOf(cur, si)))[i]) { const { w, r } = readRow(si, i); logSet(si, i, w, r); } return; }
   if (e.target.id === 'cA' || e.target.id === 'cB') renderCompare();
-  if (e.target.id === 'bDate') { const b = S.body[e.target.value]; const v = b && !b.del ? b : {}; $('bW').value = v.w ?? ''; $('bWaist').value = v.waist ?? ''; $('bBf').value = v.bf ?? ''; $('bNote').value = v.note ?? ''; }
+  if (e.target.id === 'bDate') { const b = S.body[e.target.value]; const v = b && !b.del ? b : {}; $('bW').value = v.w ?? ''; $('bWaist').value = v.waist ?? ''; $('bBf').value = v.bf ?? ''; $('bChest').value = v.chest ?? ''; $('bArms').value = v.arms ?? ''; $('bThighs').value = v.thighs ?? ''; $('bHips').value = v.hips ?? ''; $('bNote').value = v.note ?? ''; }
 });
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) return;
-  const nw = weekKeyOf(new Date()); if (nw !== curWeek) { curWeek = nw; cur = (() => { const g = new Date().getDay(); return g >= 1 && g <= 5 ? g - 1 : 0; })(); renderAll(); }
-  keepAwake(); sync();
+  const nw = weekKeyOf(new Date()); if (nw !== curWeek) { curWeek = nw; applyRoutine(); cur = (() => { const g = new Date().getDay(); return g >= 1 && g <= 5 ? g - 1 : 0; })(); renderAll(); }
+  keepAwake(); syncAll();
 });
-window.addEventListener('online', () => sync());
-document.addEventListener('pointerdown', () => keepAwake(), { once: true });
+window.addEventListener('online', () => syncAll());
+document.addEventListener('pointerdown', () => keepAwake());
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') navigator.serviceWorker.register('sw.js').catch(() => { });
+const lightMQ = window.matchMedia ? matchMedia('(prefers-color-scheme: light)') : null;
+function resolveMode() { const a = S.settings.appearance || 'dark'; return a === 'auto' ? (lightMQ && lightMQ.matches ? 'light' : 'dark') : a; }
+if (lightMQ && lightMQ.addEventListener) lightMQ.addEventListener('change', () => { if ((S.settings.appearance || 'dark') === 'auto') { applyTheme(); renderAll(); } });
 function applyTheme() {
+  const mode = resolveMode(); TH = mode === 'light' ? PROFILES[PROF].thL : PROFILES[PROF].th;
+  document.documentElement.dataset.mode = mode; document.documentElement.style.colorScheme = mode;
   const r = document.documentElement.style; for (const k in TH) r.setProperty('--' + k, TH[k]);
   document.querySelector('meta[name=theme-color]').setAttribute('content', TH.bg);
-  document.body.dataset.prof = PROF;
+  document.body.dataset.prof = PROF; $('switchBtn').textContent = PROFILES[PROF].mono;
 }
 function selectProfile(p) {
   PROF = p; DAYS = PROFILES[p].days; TH = PROFILES[p].th; KEY = 'gym.v2.' + p;
   loadState(); now = new Date(); curWeek = weekKeyOf(now); cur = todayIdx();
   for (const k in urlCache) delete urlCache[k];
-  clearInterval(rInt); $('rest').classList.remove('show'); closeSheet();
+  closeSheet();
   if (PC) { PC.done = true; PC = null; $('pacer').classList.remove('show'); }
-  applyTheme(); showTab('workout'); initCloud();
+  applyTheme(); if (typeof applyRoutine === 'function') applyRoutine(); showTab('workout'); showRestFor(); initCloud();
 }
 function lastSessionOf(p) {
   try {
@@ -765,8 +848,8 @@ function showPicker() {
   const pk = $('picker');
   pk.innerHTML = ['king', 'qxeen'].map(p => {
     const t = lastSessionOf(p), P0 = PROFILES[p];
-    return `<button class="half ${p}" data-prof="${p}"><div class="crown">${CROWN}</div><b>${P0.name.toUpperCase()}</b><span>${P0.tagline}</span><small>${t ? 'Last session ' + fmtD(new Date(t), { weekday: 'short', month: 'short', day: 'numeric' }) : 'Tap to start'}</small></button>`;
-  }).join('') + `<div class="who">WHO'S TRAINING?</div>`;
+    return `<button class="half ${p}" data-prof="${p}"><div class="mono">${P0.mono}</div><b>${P0.name}</b><span>${P0.tagline}</span><small>${t ? 'Last session ' + fmtD(new Date(t), { weekday: 'short', month: 'short', day: 'numeric' }) : 'Tap to start'}</small></button>`;
+  }).join('') + `<div class="who">Who’s training?</div>`;
   pk.className = 'show';
 }
 $('picker').addEventListener('click', e => {

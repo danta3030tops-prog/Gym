@@ -1,7 +1,7 @@
 // Offline support: app files are cached so it opens at the gym with no signal.
 // Bump VERSION whenever you change app files so phones pick up the update.
-const VERSION = 'gym-v2';
-const SHELL = ['./', './index.html', './app.js', './data.js', './data-qxeen.js', './config.js', './manifest.webmanifest',
+const VERSION = 'gym-v11';
+const SHELL = ['./', './index.html', './app.js', './extras.js', './data.js', './data-qxeen.js', './library.js', './config.js', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png', './maskable-512.png'];
 const CDN = ['cdn.jsdelivr.net', 'cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 

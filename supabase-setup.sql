@@ -33,3 +33,18 @@ create policy "photos update own" on storage.objects for update to authenticated
   using (bucket_id = 'progress-photos' and (storage.foldername(name))[1] = auth.uid()::text);
 create policy "photos delete own" on storage.objects for delete to authenticated
   using (bucket_id = 'progress-photos' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- 3) Scoreboard & nudges: each person shares a small stats summary (streaks, days trained, PR count).
+--    No workouts, weights, body stats or photos, just the numbers for the scoreboard.
+create table if not exists public.gym_public (
+  user_id    uuid primary key references auth.users(id) on delete cascade,
+  profile    text not null,
+  data       jsonb not null,
+  updated_at timestamptz not null default now()
+);
+alter table public.gym_public enable row level security;
+drop policy if exists "read summaries" on public.gym_public;
+drop policy if exists "write own summary" on public.gym_public;
+create policy "read summaries" on public.gym_public for select to authenticated using (true);
+create policy "write own summary" on public.gym_public for all to authenticated
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
